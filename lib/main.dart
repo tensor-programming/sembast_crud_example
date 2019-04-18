@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
       onDispose: (_, bloc) => bloc.dispose(),
       child: MaterialApp(
         title: 'Flutter Demo',
-        theme: ThemeData(),
+        theme: ThemeData.dark(),
         home: DefaultTabController(
           length: 2,
           child: MyHomePage(),
@@ -53,8 +53,8 @@ class MyHomePage extends StatelessWidget {
       ),
       body: TabBarView(
         children: <Widget>[
-          FormTab(bloc),
           InfoTab(bloc),
+          FormTab(bloc),
         ],
       ),
     );
@@ -71,44 +71,6 @@ class FormTab extends StatefulWidget {
 }
 
 class _FormTabState extends State<FormTab> {
-  @override
-  void initState() {
-    super.initState();
-    widget.bloc.inSink.add(Note(state: NotesState.GETALL));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: widget.bloc.outgoing,
-      builder: (context, AsyncSnapshot<List<Note>> snapshot) {
-        if (!snapshot.hasData) {
-          return CircularProgressIndicator();
-        }
-        return ListView(
-          children: snapshot.data
-              .map(
-                (note) => ListTile(
-                      title: Text(note.body),
-                    ),
-              )
-              .toList(),
-        );
-      },
-    );
-  }
-}
-
-class InfoTab extends StatefulWidget {
-  final NoteBloc bloc;
-
-  InfoTab(this.bloc);
-
-  @override
-  _InfoTabState createState() => _InfoTabState();
-}
-
-class _InfoTabState extends State<InfoTab> {
   TextEditingController _controller;
 
   @override
@@ -130,6 +92,93 @@ class _InfoTabState extends State<InfoTab> {
 
               setState(() => _controller.clear());
             },
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class InfoTab extends StatefulWidget {
+  final NoteBloc bloc;
+
+  InfoTab(this.bloc);
+
+  @override
+  _InfoTabState createState() => _InfoTabState();
+}
+
+class _InfoTabState extends State<InfoTab> {
+  @override
+  void initState() {
+    super.initState();
+    widget.bloc.inSink.add(Note(state: NotesState.GETALL));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder(
+              stream: widget.bloc.outgoing,
+              builder: (context, AsyncSnapshot<List<Note>> snapshot) {
+                if (!snapshot.hasData) {
+                  return CircularProgressIndicator();
+                }
+                return ListView(
+                  children: snapshot.data
+                      .map(
+                        (note) => GestureDetector(
+                              child: ListTile(
+                                title: note.editing
+                                    ? TextFormField(
+                                        initialValue: note.body,
+                                        onFieldSubmitted: (text) => setState(
+                                              () => widget.bloc.inSink.add(
+                                                    note.copyWith(
+                                                      body: text,
+                                                      editing: !note.editing,
+                                                      state: NotesState.UPDATE,
+                                                    ),
+                                                  ),
+                                            ),
+                                      )
+                                    : Text(note.body),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () => setState(
+                                        () => widget.bloc.inSink.add(
+                                              note.copyWith(
+                                                id: note.id,
+                                                state: NotesState.DETLETE,
+                                              ),
+                                            ),
+                                      ),
+                                ),
+                              ),
+                              onTap: () {
+                                setState(() => widget.bloc.inSink.add(
+                                      note.copyWith(
+                                          editing: !note.editing,
+                                          state: NotesState.UPDATE),
+                                    ));
+                              },
+                            ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
+          ),
+          MaterialButton(
+            child: Text('Delete All'),
+            onPressed: () => setState(() => widget.bloc.inSink.add(Note(
+                  state: NotesState.DELETE_ALL,
+                ))),
+            elevation: 10.0,
+            color: ThemeData.dark().indicatorColor,
           )
         ],
       ),
